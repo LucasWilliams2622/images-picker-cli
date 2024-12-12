@@ -1,118 +1,194 @@
-/**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
- */
-
-import React from 'react';
-import type {PropsWithChildren} from 'react';
+/* eslint-disable react-native/no-inline-styles */
+import React, { useState } from "react";
 import {
-  SafeAreaView,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
+  FlatList,
+  Image,
+  LayoutAnimation,
+  Modal,
+  Platform,
   Text,
-  useColorScheme,
-  View,
-} from 'react-native';
+  TouchableWithoutFeedback,
+  UIManager,
+} from "react-native";
+import { TouchableOpacity } from "react-native";
+import { ScrollView } from "react-native";
+import { View } from "react-native";
+import { Dimensions } from "react-native";
+import { StatusBar } from "react-native";
+import { SafeAreaView } from "react-native";
 
-import {
-  Colors,
-  DebugInstructions,
-  Header,
-  LearnMoreLinks,
-  ReloadInstructions,
-} from 'react-native/Libraries/NewAppScreen';
+import { StyleSheet } from "react-native";
+import ImageGrid from "@baronha/react-native-image-grid";
+import { openPicker } from "@baronha/react-native-multiple-image-picker";
 
-type SectionProps = PropsWithChildren<{
-  title: string;
-}>;
+UIManager.setLayoutAnimationEnabledExperimental &&
+  UIManager.setLayoutAnimationEnabledExperimental(true);
 
-function Section({children, title}: SectionProps): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
+const layoutEffect = () => {
+  LayoutAnimation.configureNext({
+    duration: 300,
+    create: {
+      type: LayoutAnimation.Types.easeInEaseOut,
+      property: LayoutAnimation.Properties.opacity,
+    },
+    update: {
+      type: LayoutAnimation.Types.easeInEaseOut,
+    },
+  });
+};
+
+const { width } = Dimensions.get("window");
+
+export default function App() {
+  const [images, setImages] = useState([]);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [selectedImage, setSelectedImage] = useState("");
+
+  const onPressImage = (item, index) => {
+    console.log(item, index);
+  };
+
+  const onPicker = async () => {
+    try {
+      const singleSelectedMode = false;
+
+      const response = await openPicker({
+        selectedAssets: images,
+        isExportThumbnail: true,
+        doneTitle: "Xong",
+        singleSelectedMode,
+        usedCameraButton: false,
+      });
+      console.log("🚀 ~ onPicker ~ response:", response);
+
+      const crop = response.crop;
+
+      console.log("crop: ", crop);
+
+      if (crop) {
+        response.path = crop.path;
+        response.width = crop.width;
+        response.height = crop.height;
+      }
+
+      setImages(Array.isArray(response) ? response : [response]);
+      layoutEffect();
+    } catch (e) {
+      console.log("🚀 ~ onPicker ~ e:", e);
+    }
+  };
+
+  const onRemovePhoto = (_, index) => {
+    const data = [...images].filter((_, idx) => idx !== index);
+    setImages(data);
+    layoutEffect();
+  };
+
   return (
-    <View style={styles.sectionContainer}>
-      <Text
-        style={[
-          styles.sectionTitle,
-          {
-            color: isDarkMode ? Colors.white : Colors.black,
-          },
-        ]}>
-        {title}
-      </Text>
-      <Text
-        style={[
-          styles.sectionDescription,
-          {
-            color: isDarkMode ? Colors.light : Colors.dark,
-          },
-        ]}>
-        {children}
-      </Text>
+    <View style={style.container}>
+      <ScrollView contentContainerStyle={{ paddingTop: 132 }}>
+        <View style={{ alignItems: "center" }}>
+          <ImageGrid
+            dataImage={images}
+            onPressImage={onPressImage}
+            // spaceSize={10}
+            containerStyle={{ marginTop: 3 }}
+            width={Dimensions.get("window").width - 6}
+            sourceKey={"path"}
+            videoKey={"type"}
+            prefixPath={Platform.OS === "ios" ? "file://" : ""}
+            conditionCheckVideo={"video"}
+            videoURLKey={"thumbnail"}
+            showDelete
+            onDeleteImage={onRemovePhoto}
+          />
+
+          <TouchableOpacity style={style.buttonOpen} onPress={onPicker}>
+            <Text style={style.textOpen}>Open Picker</Text>
+          </TouchableOpacity>
+
+          <FlatList
+            data={images}
+            renderItem={({ item, index }) => (
+              <TouchableOpacity
+                onPress={() => {
+                  setSelectedImage(item.path);
+                  setModalVisible(true);
+                }}
+              >
+                <Image
+                  source={{ uri: item.path }}
+                  style={{ width: 150, height: 150, margin: 5 }}
+                />
+              </TouchableOpacity>
+            )}
+            keyExtractor={(item, index) => index.toString()}
+            horizontal
+          />
+          <Modal
+            visible={modalVisible}
+            transparent={true}
+            animationType="slide"
+          >
+            <View
+              style={{
+                flex: 1,
+                backgroundColor: "black",
+                justifyContent: "center",
+                alignItems: "center",
+              }}
+            >
+              <TouchableWithoutFeedback onPress={() => setModalVisible(false)}>
+                <Image
+                  source={{ uri: selectedImage }}
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    resizeMode: "contain",
+                  }}
+                />
+              </TouchableWithoutFeedback>
+            </View>
+          </Modal>
+        </View>
+      </ScrollView>
+      <View style={style.header}>
+        <StatusBar barStyle={"light-content"} backgroundColor={"#000"} />
+        <SafeAreaView />
+        <Text style={style.title}>PICKER</Text>
+      </View>
     </View>
   );
 }
 
-function App(): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
-
-  const backgroundStyle = {
-    backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
-  };
-
-  return (
-    <SafeAreaView style={backgroundStyle}>
-      <StatusBar
-        barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-        backgroundColor={backgroundStyle.backgroundColor}
-      />
-      <ScrollView
-        contentInsetAdjustmentBehavior="automatic"
-        style={backgroundStyle}>
-        <Header />
-        <View
-          style={{
-            backgroundColor: isDarkMode ? Colors.black : Colors.white,
-          }}>
-          <Section title="Step One">
-            Edit <Text style={styles.highlight}>App.tsx</Text> to change this
-            screen and then come back to see your edits.
-          </Section>
-          <Section title="See Your Changes">
-            <ReloadInstructions />
-          </Section>
-          <Section title="Debug">
-            <DebugInstructions />
-          </Section>
-          <Section title="Learn More">
-            Read the docs to discover what to do next:
-          </Section>
-          <LearnMoreLinks />
-        </View>
-      </ScrollView>
-    </SafeAreaView>
-  );
-}
-
-const styles = StyleSheet.create({
-  sectionContainer: {
-    marginTop: 32,
-    paddingHorizontal: 24,
+const style = StyleSheet.create({
+  container: {
+    backgroundColor: "#000",
+    flex: 1,
   },
-  sectionTitle: {
+  title: {
+    fontWeight: "900",
     fontSize: 24,
-    fontWeight: '600',
+    paddingVertical: 24,
+    fontFamily: "Avenir",
+    color: "#cdac81",
+    textAlign: "center",
   },
-  sectionDescription: {
-    marginTop: 8,
-    fontSize: 18,
-    fontWeight: '400',
+  buttonOpen: {
+    margin: 24,
+    backgroundColor: "#fff",
+    padding: 12,
+    alignItems: "center",
+    width: width - 48,
   },
-  highlight: {
-    fontWeight: '700',
+  textOpen: {
+    fontWeight: "bold",
+  },
+  header: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: "rgba(0,0,0,0.9)",
   },
 });
-
-export default App;
